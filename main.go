@@ -3,12 +3,24 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func main() {
-	p := tea.NewProgram(initialModel())
+	content, err := os.ReadFile("content/kjv.txt")
+	if err != nil {
+		fmt.Println("could not load file:", err)
+		os.Exit(1)
+	}
+
+	p := tea.NewProgram(
+		model{content: string(content)},
+	)
+
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
@@ -16,16 +28,9 @@ func main() {
 }
 
 type model struct {
-	choices		[]string
-	cursor		int
-	selected	map[int]struct{}
-}
-
-func initialModel() model {
-	return model{
-		choices:	[]string{"carrots", "celery", "kohlrabi"},
-		selected:	make(map[int]struct{}),
-	}
+	content		string
+	ready		bool
+	viewport	viewport.Model
 }
 
 func (m model) Init() tea.Cmd {
@@ -33,52 +38,46 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
+
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
+		if k := msg.String(); k == "ctrl+c" || k == "q" {
 			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.choices) {
-				m.cursor++
-			}
-		case "enter", "space":
-			_, ok := m.selected[m.cursor]
-			if ok {
-				delete(m.selected, m.cursor)
-			} else {
-				m.selected[m.cursor] = struct{}{}
-			}
+		}
+	case tea.WindowSizeMsg:
+		if !m.ready {
+			m.viewport = viewport.New(viewport.WithWidth(msg.Width), viewport.WithHeight(msg.Height))
+			m.viewport.YPosition = 0
+			m.viewport.HighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("34"))
+			m.viewport.SelectedHighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("47"))
+			m.viewport.SetContent(m.content)
+			m.viewport.SetHighlights(regexp.MustCompile("artichoke").FindAllStringIndex(m.content, -1))
+			m.viewport.HighlightNext()
+			m.ready = true
+		} else {
+			m.viewport.SetWidth(msg.Width)
+			m.viewport.SetHeight(msg.Height)
 		}
 	}
-	return m, nil
+
+	m.viewport, cmd = m.viewport.Update(msg)
+	cmds = append(cmds, cmd)
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() tea.View {
-	s := "What should we buy at the market?\n\n"
-
-	for i, choice := range m.choices {
-		cursor := " "
-		if m.cursor == i {
-			cursor = ">"
-		}
-
-		checked := " "
-		if _, ok := m.selected[i]; ok {
-			checked = "x"
-		}
-
-		s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
-	}
-
-	s += "\nPress q to quit.\n"
-
-	v := tea.NewView(s)
+	var v tea.View
 	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	if !m.ready {
+		v.SetContent("\n  Initializing...")
+	} else {
+		v.SetContent(fmt.Sprintf("\n%s\n", m.viewport.View()))
+	}
 	return v
 }
 
