@@ -8,14 +8,16 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/delsonjabberwo/bible-tui/internal/bible"
 )
 
 func main() {
-	content, err := os.ReadFile("content/kjv.txt")
+	version, err := bible.LoadVersion("kjv")
 	if err != nil {
 		fmt.Println("could not load file:", err)
 		os.Exit(1)
 	}
+	content := bible.VersesToText(version.Verses)
 
 	p := tea.NewProgram(
 		model{content: string(content)},
