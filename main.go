@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
-	"regexp"
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/delsonjabberwo/bible-tui/internal/bible"
+	"github.com/muesli/reflow/wordwrap"
+	"github.com/muesli/reflow/wrap"
 )
 
 func main() {
@@ -17,7 +18,7 @@ func main() {
 		fmt.Println("could not load file:", err)
 		os.Exit(1)
 	}
-	content := bible.VersesToText(version.Verses)
+	content := version.GetBookText(1)
 
 	p := tea.NewProgram(
 		model{content: string(content)},
@@ -51,19 +52,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
+		maxWidth := 100
+		padding := 4
 		if !m.ready {
 			m.viewport = viewport.New(viewport.WithWidth(msg.Width), viewport.WithHeight(msg.Height))
 			m.viewport.YPosition = 0
 			m.viewport.HighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("34"))
 			m.viewport.SelectedHighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("47"))
-			m.viewport.SetContent(m.content)
-			m.viewport.SetHighlights(regexp.MustCompile("artichoke").FindAllStringIndex(m.content, -1))
-			m.viewport.HighlightNext()
+			m.viewport.Style = m.viewport.Style.
+								Margin(0, padding)
 			m.ready = true
 		} else {
 			m.viewport.SetWidth(msg.Width)
 			m.viewport.SetHeight(msg.Height)
 		}
+		var wordWidthLimit int
+		if m.viewport.Width() < maxWidth + padding * 2 {
+			wordWidthLimit = (m.viewport.Width() - padding * 2)
+		} else {
+			wordWidthLimit = maxWidth
+		}
+		m.viewport.SetContent(wrap.String(wordwrap.String(m.content, wordWidthLimit), m.viewport.Width() - padding * 2))
 	}
 
 	m.viewport, cmd = m.viewport.Update(msg)
