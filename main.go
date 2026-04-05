@@ -2,26 +2,42 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"time"
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/delsonjabberwo/bible-tui/internal/bible"
-	"github.com/muesli/reflow/wordwrap"
-	"github.com/muesli/reflow/wrap"
+	"github.com/delsonjabberwo/bible-tui/internal/buffer"
 )
 
 func main() {
-	version, err := bible.LoadVersion("kjv")
+	if os.Getenv("DEBUG") == "1" {
+		f, err := tea.LogToFile("tmp/debug.log", "debug")
+		if err != nil {
+			fmt.Println("fatal:", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+	} else {
+		f, err := tea.LogToFile("/dev/null", "debug")
+		if err != nil {
+			fmt.Println("fatal:", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+	}
+
+	viewportInfo := buffer.NewViewportInfo(0)
+	buffer, err := buffer.NewBuffer(viewportInfo, "kjv", 1)
 	if err != nil {
 		fmt.Println("could not load file:", err)
 		os.Exit(1)
 	}
-	content := version.GetBookText(1)
 
 	p := tea.NewProgram(
-		model{content: string(content)},
+		model{buffer: buffer},
 	)
 
 	if _, err := p.Run(); err != nil {
@@ -31,9 +47,9 @@ func main() {
 }
 
 type model struct {
-	content		string
-	ready		bool
-	viewport	viewport.Model
+	buffer   buffer.Buffer
+	ready    bool
+	viewport viewport.Model
 }
 
 func (m model) Init() tea.Cmd {
@@ -45,6 +61,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd  tea.Cmd
 		cmds []tea.Cmd
 	)
+	//start := time.Now()
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -52,31 +69,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
-		maxWidth := 100
-		padding := 4
+		padding := buffer.PADDING
 		if !m.ready {
 			m.viewport = viewport.New(viewport.WithWidth(msg.Width), viewport.WithHeight(msg.Height))
 			m.viewport.YPosition = 0
 			m.viewport.HighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("34"))
 			m.viewport.SelectedHighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("47"))
 			m.viewport.Style = m.viewport.Style.
-								Margin(0, padding)
+				Margin(0, padding)
+			m.buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset())
 			m.ready = true
 		} else {
 			m.viewport.SetWidth(msg.Width)
 			m.viewport.SetHeight(msg.Height)
+			viewportInfo := buffer.NewViewportInfo(m.viewport.Width())
+			//log.Printf("Old Offset: %d\n", m.viewport.YOffset())
+			m.viewport.SetYOffset(m.buffer.UpdateBuffer(viewportInfo, m.viewport.YOffset()))
+			//log.Printf("New Offset: -> %d\n", m.viewport.YOffset())
 		}
-		var wordWidthLimit int
-		if m.viewport.Width() < maxWidth + padding * 2 {
-			wordWidthLimit = (m.viewport.Width() - padding * 2)
-		} else {
-			wordWidthLimit = maxWidth
-		}
-		m.viewport.SetContent(wrap.String(wordwrap.String(m.content, wordWidthLimit), m.viewport.Width() - padding * 2))
+		m.viewport.SetContent(m.buffer.Content)
 	}
 
 	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
+	//duration := time.Since(start)
+	//log.Printf("Update Time: %s\n", duration)
 	return m, tea.Batch(cmds...)
 }
 
@@ -91,4 +108,3 @@ func (m model) View() tea.View {
 	}
 	return v
 }
-

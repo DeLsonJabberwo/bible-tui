@@ -63,17 +63,17 @@ func (v *Version) GetBookText(book int) string {
 	verseStyle := lipgloss.NewStyle().Bold(true).
 					Foreground(lipgloss.Cyan)
 	for _, i := range v.Verses {
-		if i.Verse == 1 {
-			if i.Chapter == 1{
-				text = lipgloss.Sprintf("%s\n\n\n%s", text, bookStyle.Render(i.BookName))
-			}
-			text = lipgloss.Sprintf("%s\n\n%s", text, chapterStyle.Render(fmt.Sprintf("Chapter %s", strconv.Itoa(i.Chapter))))
-		}
 		if i.Book < book {
 			continue
 		}
 		if i.Book > book {
 			break
+		}
+		if i.Verse == 1 {
+			if i.Chapter == 1{
+				text = lipgloss.Sprintf("%s\n\n\n%s", text, bookStyle.Render(i.BookName))
+			}
+			text = lipgloss.Sprintf("%s\n\n%s", text, chapterStyle.Render(fmt.Sprintf("Chapter %s", strconv.Itoa(i.Chapter))))
 		}
 		newline := strings.Contains(i.Text, "¶ ")
 		verse := strings.Replace(i.Text, "¶ ", "", 1)
