@@ -125,7 +125,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.YPosition = 0
 			m.viewport.HighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("34"))
 			m.viewport.SelectedHighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("47"))
-			m.viewport.Style = m.viewport.Style.Margin(0, padding)
+			m.viewport.Style = m.viewport.Style.Margin(0, padding, 2)
 
 			m.buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset())
 			m.ready = true
@@ -140,10 +140,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetContent(m.buffer.Content)
 	}
 
-	if !inFourthBook {
+	if m.appending {
 		m.appending = false
 	}
-	if !inSecondBook {
+	if m.prepending {
 		m.prepending = false
 	}
 

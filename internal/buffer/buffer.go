@@ -63,9 +63,7 @@ func NewBuffer(viewportInfo ViewportInfo, versionCode string, book int) (Buffer,
 func (b *Buffer) UpdateBuffer(viewportInfo ViewportInfo, yOffset int) int {
 	verse := b.VerseLocs.GetVerseFromLine(yOffset)
 	b.Content = ""
-	log.Printf("Books: %v\n", b.Books)
 	b.RenderBooks(viewportInfo)
-	log.Printf("BookLocs: %v\n", b.BookLocs)
 	return b.VerseLocs.Verses[verse]
 }
 
