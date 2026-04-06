@@ -2,7 +2,9 @@ package buffer
 
 import (
 	"fmt"
+	"log"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -20,6 +22,7 @@ type Buffer struct {
 	VerseLocs		bible.VerseLocs
 	ChapterLocs		map[bible.ChapterInfo]int
 	BookLocs		map[int]int
+	LastViewportInfo ViewportInfo
 
 }
 
@@ -30,14 +33,29 @@ func NewBuffer(viewportInfo ViewportInfo, versionCode string, book int) (Buffer,
 	if err != nil {
 		return Buffer{}, err
 	}
-	buffer.Books = []int{ book }
+	buffer.Books = make([]int, 5)
+	var curr int
+	if book - 2 > 0 {
+		buffer.Books[curr] = book - 2
+		curr++
+	}
+	if book - 1 > 0 {
+		buffer.Books[curr] = book - 1
+		curr++
+	}
+	for curr < 5 {
+		buffer.Books[curr] = book
+		book++
+		curr++
+	}
 	buffer.VerseLocs = bible.VerseLocs{
 		Verses: make(map[bible.VerseInfo]int),
 		LineCount: 0,
 	}
 	buffer.ChapterLocs = make(map[bible.ChapterInfo]int)
 	buffer.BookLocs = make(map[int]int)
-	buffer.AppendBook(viewportInfo, book)
+	buffer.LastViewportInfo = viewportInfo
+	buffer.RenderBooks(viewportInfo)
 
 	return buffer, nil
 }
@@ -45,13 +63,12 @@ func NewBuffer(viewportInfo ViewportInfo, versionCode string, book int) (Buffer,
 func (b *Buffer) UpdateBuffer(viewportInfo ViewportInfo, yOffset int) int {
 	verse := b.VerseLocs.GetVerseFromLine(yOffset)
 	b.Content = ""
-	for _, i := range b.Books {
-		b.AppendBook(viewportInfo, i)
-	}
+	log.Printf("Books: %v\n", b.Books)
+	b.RenderBooks(viewportInfo)
 	return b.VerseLocs.Verses[verse]
 }
 
-func (b *Buffer) AppendBook(viewportInfo ViewportInfo, bookNum int) error {
+func (b *Buffer) RenderBooks(viewportInfo ViewportInfo) error {
 	widthLimit := viewportInfo.WordWidthLimit()
 	bookStyle := lipgloss.NewStyle().Bold(true).
 					Border(lipgloss.ASCIIBorder()).
@@ -65,11 +82,8 @@ func (b *Buffer) AppendBook(viewportInfo ViewportInfo, bookNum int) error {
 
 	var sb strings.Builder
 	for _, i := range b.Version.Verses {
-		if i.Book < bookNum {
+		if !slices.Contains(b.Books, i.Book) {
 			continue
-		}
-		if i.Book > bookNum {
-			break
 		}
 		if i.Verse == 1 {
 			if i.Chapter == 1{
@@ -105,21 +119,27 @@ func (b *Buffer) AppendBook(viewportInfo ViewportInfo, bookNum int) error {
 	}
 
 	b.Content = wrap.String(wordwrap.String(sb.String(), widthLimit), viewportInfo.MaxWidth())
+	b.VerseLocs.LineCount = 0
+	b.VerseLocs.Verses = make(map[bible.VerseInfo]int)
 
 	plainContent := ansi.Strip(b.Content)
 
-	lines := strings.Split(plainContent, "\n")
-	b.VerseLocs.LineCount = len(lines)
+	books := strings.Split(plainContent, "\n\n\n")
+	books = books[1:]
+	currentLineOffset := 0
+	for bookInd, book := range books {
+		lines := strings.Split(book, "\n")
+		b.VerseLocs.LineCount += len(lines)
 
-	b.VerseLocs.Verses = make(map[bible.VerseInfo]int)
-	re := regexp.MustCompile(`\[(\d+)\]`)
-	var ch, vs int
-	for num, line := range lines {
-		matches := re.FindAllStringSubmatch(line, -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				if verseNum, err := strconv.Atoi(match[1]); err == nil {
-					switch verseNum {
+		re := regexp.MustCompile(`\[(\d+)\]`)
+		bookNum := b.Books[bookInd]
+		var ch, vs int
+		for num, line := range lines {
+			matches := re.FindAllStringSubmatch(line, -1)
+			for _, match := range matches {
+				if len(match) > 1 {
+					if verseNum, err := strconv.Atoi(match[1]); err == nil {
+						switch verseNum {
 						case 1:
 							ch++
 							vs = 1
@@ -127,17 +147,28 @@ func (b *Buffer) AppendBook(viewportInfo ViewportInfo, bookNum int) error {
 							vs++
 						default:
 							return fmt.Errorf("error: content failure")
+						}
+						verseInfo := bible.VerseInfo{
+							Book: bookNum,
+							Chapter: ch,
+							Verse: vs,
+						}
+						b.VerseLocs.Verses[verseInfo] = num + currentLineOffset
 					}
-					verseInfo := bible.VerseInfo{
-						Book: bookNum,
-						Chapter: ch,
-						Verse: vs,
-					}
-					b.VerseLocs.Verses[verseInfo] = num
 				}
 			}
 		}
+		currentLineOffset += len(lines)
 	}
 
 	return nil
+}
+
+func (b *Buffer) ShiftBooksNext() {
+	b.Books = append(b.Books[1:], b.Books[len(b.Books) - 1] + 1)
+}
+
+func (b *Buffer) ShiftBooksPrev() {
+	curr := b.Books[:len(b.Books) - 1]
+	b.Books = append([]int{b.Books[0] - 1}, curr...)
 }
