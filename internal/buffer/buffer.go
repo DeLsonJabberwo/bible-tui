@@ -65,6 +65,7 @@ func (b *Buffer) UpdateBuffer(viewportInfo ViewportInfo, yOffset int) int {
 	b.Content = ""
 	log.Printf("Books: %v\n", b.Books)
 	b.RenderBooks(viewportInfo)
+	log.Printf("BookLocs: %v\n", b.BookLocs)
 	return b.VerseLocs.Verses[verse]
 }
 
@@ -121,6 +122,7 @@ func (b *Buffer) RenderBooks(viewportInfo ViewportInfo) error {
 	b.Content = wrap.String(wordwrap.String(sb.String(), widthLimit), viewportInfo.MaxWidth())
 	b.VerseLocs.LineCount = 0
 	b.VerseLocs.Verses = make(map[bible.VerseInfo]int)
+	b.BookLocs = make(map[int]int)
 
 	plainContent := ansi.Strip(b.Content)
 
@@ -128,6 +130,7 @@ func (b *Buffer) RenderBooks(viewportInfo ViewportInfo) error {
 	books = books[1:]
 	currentLineOffset := 0
 	for bookInd, book := range books {
+		b.BookLocs[b.Books[bookInd]] = currentLineOffset
 		lines := strings.Split(book, "\n")
 		b.VerseLocs.LineCount += len(lines)
 
@@ -171,4 +174,17 @@ func (b *Buffer) ShiftBooksNext() {
 func (b *Buffer) ShiftBooksPrev() {
 	curr := b.Books[:len(b.Books) - 1]
 	b.Books = append([]int{b.Books[0] - 1}, curr...)
+}
+
+func (b *Buffer) GetBookFromLine(line int) int {
+	var book int
+	var closest int
+	for _, currBook := range b.Books {
+		currLine := b.BookLocs[currBook]
+		if currLine <= line && currLine >= closest {
+			closest = currLine
+			book = currBook
+		}
+	}
+	return book
 }

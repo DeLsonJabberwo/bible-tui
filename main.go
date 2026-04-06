@@ -65,6 +65,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 	start := time.Now()
 
+	inSecondBook := m.buffer.GetBookFromLine(m.viewport.YOffset()) <= m.buffer.Books[1]
+	inFourthBook := m.buffer.GetBookFromLine(m.viewport.YOffset()) >= m.buffer.Books[3]
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if k := msg.String(); k == "ctrl+c" || k == "q" {
@@ -73,7 +75,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "up", "k", "pgup":
-			if !m.prepending && m.viewport.YOffset() < 500 && m.buffer.Books[0] != 1 {
+			if !m.prepending && inSecondBook && m.buffer.Books[0] != 1 {
 				m.prepending = true
 				log.Printf("Prepending book:\n")
 				log.Printf("\tOld Books: %v\n", m.buffer.Books)
@@ -82,7 +84,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewport.SetYOffset(m.buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset()))
 			}
 		case "down", "j", "pgdown":
-			if !m.appending && m.viewport.YOffset() > m.buffer.VerseLocs.LineCount - 500 && m.buffer.Books[len(m.buffer.Books) - 1] != 66 {
+			if !m.appending && inFourthBook && m.buffer.Books[len(m.buffer.Books) - 1] != 66 {
 				m.appending = true
 				log.Printf("Appending book:\n")
 				log.Printf("\tOld Books: %v\n", m.buffer.Books)
@@ -96,7 +98,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		switch msg.Mouse().Button {
 		case tea.MouseWheelUp:
-			if !m.prepending && m.viewport.YOffset() < 500 && m.buffer.Books[0] != 1 {
+			if !m.prepending && inSecondBook && m.buffer.Books[0] != 1 {
 				m.prepending = true
 				log.Printf("Prepending book:\n")
 				log.Printf("\tOld Books: %v\n", m.buffer.Books)
@@ -105,7 +107,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewport.SetYOffset(m.buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset()))
 			}
 		case tea.MouseWheelDown:
-			if !m.appending && m.viewport.YOffset() > m.buffer.VerseLocs.LineCount - 500 && m.buffer.Books[len(m.buffer.Books) - 1] != 66 {
+			if !m.appending && inFourthBook && m.buffer.Books[len(m.buffer.Books) - 1] != 66 {
 				m.appending = true
 				log.Printf("Appending book:\n")
 				log.Printf("\tOld Books: %v\n", m.buffer.Books)
@@ -138,10 +140,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetContent(m.buffer.Content)
 	}
 
-	if m.viewport.YOffset() <= m.buffer.VerseLocs.LineCount-500 {
+	if !inFourthBook {
 		m.appending = false
 	}
-	if m.viewport.YOffset() >= 500 {
+	if !inSecondBook {
 		m.prepending = false
 	}
 
