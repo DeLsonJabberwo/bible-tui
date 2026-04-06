@@ -2,10 +2,7 @@ package bible
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
-	"strconv"
-	"strings"
 
 	"charm.land/lipgloss/v2"
 )
@@ -49,40 +46,5 @@ func LoadVersion(versionCode string) (Version, error) {
 	}
 
 	return version, nil
-}
-
-func (v *Version) GetBookText(book int) string {
-	var text string
-	bookStyle := lipgloss.NewStyle().Bold(true).
-					Border(lipgloss.ASCIIBorder()).
-					Width(20).
-					Align(lipgloss.Center)
-	chapterStyle := lipgloss.NewStyle().Bold(true).
-					Underline(true).
-					Foreground(lipgloss.BrightRed)
-	verseStyle := lipgloss.NewStyle().Bold(true).
-					Foreground(lipgloss.Cyan)
-	for _, i := range v.Verses {
-		if i.Book < book {
-			continue
-		}
-		if i.Book > book {
-			break
-		}
-		if i.Verse == 1 {
-			if i.Chapter == 1{
-				text = lipgloss.Sprintf("%s\n\n\n%s", text, bookStyle.Render(i.BookName))
-			}
-			text = lipgloss.Sprintf("%s\n\n%s", text, chapterStyle.Render(fmt.Sprintf("Chapter %s", strconv.Itoa(i.Chapter))))
-		}
-		newline := strings.Contains(i.Text, "¶ ")
-		verse := strings.Replace(i.Text, "¶ ", "", 1)
-		if newline {
-			text = lipgloss.Sprintf("%s\n[%s]%s", text, verseStyle.Render(strconv.Itoa(i.Verse)), verse)
-		} else {
-			text = lipgloss.Sprintf("%s [%s]%s", text, verseStyle.Render(strconv.Itoa(i.Verse)), verse)
-		}
-	}
-	return text
 }
 
