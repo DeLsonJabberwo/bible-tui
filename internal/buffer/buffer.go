@@ -2,7 +2,6 @@ package buffer
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"slices"
 	"strconv"
