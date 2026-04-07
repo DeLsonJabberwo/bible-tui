@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"log"
 	"os"
@@ -9,8 +10,12 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/delsonjabberwo/bible-tui/internal/bible"
 	"github.com/delsonjabberwo/bible-tui/internal/buffer"
 )
+
+//go:embed content/*.json
+var contentFS embed.FS
 
 func main() {
 	if os.Getenv("DEBUG") == "1" {
@@ -28,6 +33,9 @@ func main() {
 		}
 		defer f.Close()
 	}
+
+	// Connect embedded content filesystem
+	bible.ContentFS = contentFS
 
 	viewportInfo := buffer.NewViewportInfo(0)
 	buffer, err := buffer.NewBuffer(viewportInfo, "kjv", 1)
@@ -47,10 +55,10 @@ func main() {
 }
 
 type model struct {
-	buffer   buffer.Buffer
-	ready    bool
-	viewport viewport.Model
-	appending bool
+	buffer     buffer.Buffer
+	ready      bool
+	viewport   viewport.Model
+	appending  bool
 	prepending bool
 }
 
@@ -84,7 +92,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewport.SetYOffset(m.buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset()))
 			}
 		case "down", "j", "pgdown":
-			if !m.appending && inFourthBook && m.buffer.Books[len(m.buffer.Books) - 1] != 66 {
+			if !m.appending && inFourthBook && m.buffer.Books[len(m.buffer.Books)-1] != 66 {
 				m.appending = true
 				log.Printf("Appending book:\n")
 				log.Printf("\tOld Books: %v\n", m.buffer.Books)
@@ -107,7 +115,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewport.SetYOffset(m.buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset()))
 			}
 		case tea.MouseWheelDown:
-			if !m.appending && inFourthBook && m.buffer.Books[len(m.buffer.Books) - 1] != 66 {
+			if !m.appending && inFourthBook && m.buffer.Books[len(m.buffer.Books)-1] != 66 {
 				m.appending = true
 				log.Printf("Appending book:\n")
 				log.Printf("\tOld Books: %v\n", m.buffer.Books)
