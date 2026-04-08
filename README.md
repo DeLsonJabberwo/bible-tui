@@ -15,7 +15,7 @@ Translations Available:
 go install github.com/delsonjabberwo/bible-tui@latest
 ```
 
-**Or download the executable from: **
+**Or download the executable from:**  
 [https://github.com/DeLsonJabberwo/bible-tui/releases](https://github.com/DeLsonJabberwo/bible-tui/releases)
 
 *Note: executable includes the (KJV, Geneva, WEB, and ASV) translations.*
