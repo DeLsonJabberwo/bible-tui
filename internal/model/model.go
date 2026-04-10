@@ -2,23 +2,29 @@ package model
 
 import (
 	"log"
+	"regexp"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/delsonjabberwo/bible-tui/internal/bible"
 	"github.com/delsonjabberwo/bible-tui/internal/buffer"
 )
 
 type Model struct {
-	Buffer     buffer.Buffer
-	ready      bool
-	viewport   viewport.Model
-	appending  bool
-	prepending bool
+	Buffer		buffer.Buffer
+	ready		bool
+	viewport	viewport.Model
+	appending	bool
+	prepending	bool
+	nav			*navModel
+	references	[]Reference
 }
 
 func (m Model) Init() tea.Cmd {
+	m.references = ReferencesFromVersion(m.Buffer.Version)
 	return nil
 }
 
@@ -28,6 +34,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 	start := time.Now()
+
+	if m.nav != nil {
+		cmd := m.nav.Update(msg)
+		// check for exit or navigation
+		switch msg := msg.(type) {
+			
+		case CloseNavMsg:
+			m.nav = nil
+			return m, nil
+
+		case SelectVerseMsg:
+			m.nav = nil
+			verseInfo := bible.VerseInfo{
+				Book: msg.Ref.BookInd,
+				Chapter: msg.Ref.Chapter,
+				Verse: msg.Ref.Verse,
+			}
+			m.viewport.SetYOffset(m.Buffer.VerseLocs.Verses[verseInfo])
+			return m, nil
+		}
+
+		return m, cmd
+	}
 
 	inSecondBook := m.Buffer.GetBookFromLine(m.viewport.YOffset()) <= m.Buffer.Books[1]
 	inFourthBook := m.Buffer.GetBookFromLine(m.viewport.YOffset()) >= m.Buffer.Books[3]
@@ -47,6 +76,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.Printf("\tNew Books: %v\n", m.Buffer.Books)
 				m.viewport.SetYOffset(m.Buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset()))
 			}
+
 		case "down", "j", "pgdown":
 			if !m.appending && inFourthBook && m.Buffer.Books[len(m.Buffer.Books)-1] != 66 {
 				m.appending = true
@@ -56,11 +86,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.Printf("\tNew Books: %v\n", m.Buffer.Books)
 				m.viewport.SetYOffset(m.Buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset()))
 			}
+
 		case "ctrl+k", ":":
-			// TODO: add location input box
+			if m.nav == nil {
+				newNav := NewNavModel(m.references)
+				m.nav = &newNav
+			}
+
 		}
 
 		m.viewport.SetContent(m.Buffer.Content)
+
 	case tea.MouseWheelMsg:
 		switch msg.Mouse().Button {
 		case tea.MouseWheelUp:
@@ -84,6 +120,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.viewport.SetContent(m.Buffer.Content)
+
 	case tea.WindowSizeMsg:
 		padding := buffer.PADDING
 		if !m.ready {
@@ -104,6 +141,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//log.Printf("New Offset: -> %d\n", m.viewport.YOffset())
 		}
 		m.viewport.SetContent(m.Buffer.Content)
+
 	}
 
 	if m.appending {
@@ -130,16 +168,87 @@ func (m Model) View() tea.View {
 	}
 
 	content := m.viewport.View()
-	//infoBar := m.infoBar()
-	fullContent := content
-	/*
-	fullContent := lipgloss.JoinVertical(
-		lipgloss.Left,
-		content,
-		infoBar,
-	)
-	*/
 
-	v.SetContent(fullContent)
+	if m.nav == nil {
+		v.SetContent(content)
+		return v
+	}
+	
+	dimmedContent := lipgloss.NewStyle().
+		Faint(true).
+        Render(content)
+
+	navContent := m.nav.View()
+	styledNav := lipgloss.NewStyle().
+        Width(30).
+        Border(lipgloss.RoundedBorder()).
+        Padding(1, 2).
+        Render(navContent)
+
+	finalContent := overlayStrings(
+		dimmedContent, 
+		styledNav, 
+		34,
+		len(strings.Split(styledNav, "\n")), 
+	)
+
+	v.SetContent(finalContent)
+
 	return v
 }
+
+func overlayStrings(base string, overlay string, overlayWidth int, overlayHeight int) string {
+    baseLines := strings.Split(base, "\n")
+    overlayLines := strings.Split(overlay, "\n")
+    
+    // Find center position
+	visibleWidth := len(stripAnsi(baseLines[0]))
+    startY := (len(baseLines) - overlayHeight) / 2
+    startX := (visibleWidth - overlayWidth) / 2
+    
+    for i, line := range overlayLines {
+        if startY+i >= 0 && startY+i < len(baseLines) {
+            baseLine := baseLines[startY+i]
+			visibleBaseWidth := len(stripAnsi(baseLine))
+
+			beforeEnd := visibleToByteIndex(baseLine, startX)
+            afterStart := visibleToByteIndex(baseLine, startX+overlayWidth)
+
+            before := ""
+            if startX > 0 && startX <= visibleBaseWidth {
+                before = baseLine[:beforeEnd]
+            }
+            after := ""
+            if startX+overlayWidth < visibleBaseWidth {
+                after = baseLine[afterStart:]
+            }
+            baseLines[startY+i] = before + line + after
+        }
+    }
+    return strings.Join(baseLines, "\n")
+}
+
+func stripAnsi(str string) string {
+    re := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+    return re.ReplaceAllString(str, "")
+}
+
+func visibleToByteIndex(str string, visiblePos int) int {
+    ansiRe := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+    byteIdx := 0
+    visibleCount := 0
+    
+    for visibleCount < visiblePos && byteIdx < len(str) {
+        // Check if current position is start of ANSI sequence
+        loc := ansiRe.FindStringIndex(str[byteIdx:])
+        if loc != nil && loc[0] == 0 {
+            byteIdx += loc[1] // Skip entire ANSI sequence
+        } else {
+            byteIdx++
+            visibleCount++
+        }
+    }
+    
+    return byteIdx
+}
+

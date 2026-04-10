@@ -22,7 +22,6 @@ type Buffer struct {
 	ChapterLocs		map[bible.ChapterInfo]int
 	BookLocs		map[int]int
 	LastViewportInfo ViewportInfo
-
 }
 
 func NewBuffer(viewportInfo ViewportInfo, versionCode string, book int) (Buffer, error) {
