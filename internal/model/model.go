@@ -23,7 +23,7 @@ type Model struct {
 	references	[]Reference
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	m.references = ReferencesFromVersion(m.Buffer.Version)
 	return nil
 }
@@ -42,7 +42,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			
 		case CloseNavMsg:
 			m.nav = nil
-			return m, nil
+			return &m, nil
 
 		case SelectVerseMsg:
 			m.nav = nil
@@ -51,11 +51,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Chapter: msg.Ref.Chapter,
 				Verse: msg.Ref.Verse,
 			}
+			var err error
+			m.Buffer, err = buffer.NewBuffer(m.Buffer.LastViewportInfo, 
+										strings.ToLower(m.Buffer.Version.Metadata.ShortName), 
+										verseInfo.Book)
+			if err != nil {
+				return nil, nil
+			}
+			m.viewport.SetContent(m.Buffer.Content)
 			m.viewport.SetYOffset(m.Buffer.VerseLocs.Verses[verseInfo])
-			return m, nil
+			return &m, nil
 		}
 
-		return m, cmd
+		return &m, cmd
 	}
 
 	inSecondBook := m.Buffer.GetBookFromLine(m.viewport.YOffset()) <= m.Buffer.Books[1]
@@ -63,7 +71,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if k := msg.String(); k == "ctrl+c" || k == "q" {
-			return m, tea.Quit
+			return &m, tea.Quit
 		}
 
 		switch msg.String() {
@@ -155,7 +163,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 	duration := time.Since(start)
 	log.Printf("Update Time: %s\n", duration)
-	return m, tea.Batch(cmds...)
+	return &m, tea.Batch(cmds...)
 }
 
 func (m Model) View() tea.View {
@@ -180,7 +188,7 @@ func (m Model) View() tea.View {
 
 	navContent := m.nav.View()
 	styledNav := lipgloss.NewStyle().
-        Width(30).
+        Width(50).
         Border(lipgloss.RoundedBorder()).
         Padding(1, 2).
         Render(navContent)

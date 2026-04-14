@@ -1,8 +1,6 @@
 package model
 
 import (
-	"strings"
-
 	"github.com/delsonjabberwo/bible-tui/internal/bible"
 )
 
@@ -17,7 +15,7 @@ func ReferencesFromVersion(version bible.Version) []Reference {
 	var references []Reference
 	for _, v := range version.Verses {
 		references = append(references, Reference{
-			Book: strings.ToLower(v.BookName),
+			Book: v.BookName,
 			BookInd: v.Book,
 			Chapter: v.Chapter,
 			Verse: v.Verse,

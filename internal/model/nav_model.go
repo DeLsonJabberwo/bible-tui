@@ -2,8 +2,10 @@ package model
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -32,7 +34,7 @@ func (n *navModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc", "ctrl+k":
+		case "esc", "ctrl+k", "ctrl+c":
 			return closeNavCmd()
 
 		case "enter":
@@ -68,9 +70,14 @@ func (n navModel) View() string {
 
 	b.WriteString(n.query.View())
 	b.WriteString("\n\n")
+	
+	if n.query.Value() == "" {
+		b.WriteString("\n\n\n\n\n\n\n\n\n\n\n")
+		return b.String()
+	}
 
 	if len(n.matches) == 0 && n.query.Value() != "" {
-		b.WriteString("No matches")
+		b.WriteString("\n\n\tNo matches\n\n\n\n\n\n\n\n")
 		return b.String()
 	}
 
@@ -90,7 +97,7 @@ func (n navModel) View() string {
 	return b.String()
 }
 
-func (n navModel) filter(query string) {
+func (n *navModel) filter(query string) {
 	query = strings.ToLower(query)
 	n.matches = nil
 	n.cursor = 0
@@ -99,20 +106,90 @@ func (n navModel) filter(query string) {
 		return
 	}
 
+	var results []result
 	for _, v := range n.all {
-		match := v.Book + " " +
-				 strconv.Itoa(v.Chapter) + ":" +
-				 strconv.Itoa(v.Verse)
-
-		if strings.HasPrefix(match, query) ||
-			strings.Contains(match, query) {
-			n.matches = append(n.matches, v)
+		match := fuzzyMatch(query, &v)
+		if match != nil {
+			results = append(results, *match)
 		}
+	}
 
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].score > results[j].score
+	})
+
+	for _, res := range results {
+		n.matches = append(n.matches, *res.reference)
 		if len(n.matches) >= 10 {
 			break
 		}
 	}
+}
+
+type result struct {
+	reference	*Reference
+	score		int
+}
+func fuzzyMatch(pattern string, targetRef *Reference) *result {
+	if len(pattern) == 0 {
+		return &result{reference: targetRef, score: 0}
+	}
+
+	pInd, tInd := 0, 0
+	matches := []int{}
+	score := 0
+	prevMatchInd := -1
+	target := strings.ToLower(targetRef.Book) + " " +
+				strconv.Itoa(targetRef.Chapter) + ":" +
+				strconv.Itoa(targetRef.Verse)
+
+	for tInd < len(target) && pInd < len(pattern) {
+		pChar := pattern[pInd]
+		tChar := target[tInd]
+
+		if byte(unicode.ToLower(rune(pChar))) == byte(unicode.ToLower(rune(tChar))) ||
+			isSeparator(pChar) && isSeparator(tChar) {
+			matches = append(matches, tInd)
+			score += 10
+
+			if prevMatchInd != -1 && tInd == prevMatchInd+1 {
+				score += 15
+			}
+
+			if tInd == 0 || isSeparator(target[tInd-1]) {
+				score += 20
+			}
+
+			if tInd > 0 && unicode.IsLower(rune(target[tInd-1])) && unicode.IsUpper(rune(tChar)) {
+				score += 20
+			}
+			prevMatchInd = tInd
+			pInd++
+		} else if pInd > 0 {
+			score -= 3
+		}
+		tInd++
+	}
+
+	if pInd < len(pattern)-1 {
+		return nil
+	}
+
+	if len(matches) > 0 {
+		score -= matches[0] * 2
+		tail := len(target) - matches[len(matches)-1] - 1
+		score -= tail
+	}
+
+	return &result{
+		reference: targetRef,
+		score: score,
+	}
+
+}
+
+func isSeparator(c byte) bool {
+	return c == ' ' || c == '-' || c == '_' || c == '/' || c == '\\' || c == ':'
 }
 
 type CloseNavMsg struct {}

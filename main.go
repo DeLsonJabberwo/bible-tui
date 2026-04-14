@@ -42,7 +42,7 @@ func main() {
 	}
 
 	p := tea.NewProgram(
-		model.Model{Buffer: buffer},
+		&model.Model{Buffer: buffer},
 	)
 
 	if _, err := p.Run(); err != nil {
