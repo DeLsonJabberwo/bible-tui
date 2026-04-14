@@ -35,7 +35,15 @@ func main() {
 	bible.ContentFS = contentFS
 
 	viewportInfo := buffer.NewViewportInfo(0)
-	buffer, err := buffer.NewBuffer(viewportInfo, "kjv", 1)
+
+	var versionCode string
+	if len(os.Args) > 1 && versions[os.Args[1]] {
+		versionCode = os.Args[1]
+	} else {
+		versionCode = "kjv"
+	}
+
+	buffer, err := buffer.NewBuffer(viewportInfo, versionCode, 1)
 	if err != nil {
 		fmt.Println("could not load file:", err)
 		os.Exit(1)
@@ -49,5 +57,12 @@ func main() {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
 	}
+}
+
+var versions map[string]bool = map[string]bool{
+	"kjv": true,
+	"geneva": true,
+	"asv": true,
+	"web": true,
 }
 
