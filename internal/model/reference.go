@@ -24,3 +24,12 @@ func ReferencesFromVersion(version bible.Version) []Reference {
 	return references
 }
 
+func NewReference(verse bible.Verse) Reference {
+	return Reference{
+		Book: verse.BookName,
+		BookInd: verse.Book,
+		Chapter: verse.Chapter,
+		Verse: verse.Verse,
+	}
+}
+

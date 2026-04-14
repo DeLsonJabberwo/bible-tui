@@ -16,13 +16,13 @@ func NewViewportInfo(width int) ViewportInfo {
 }
 
 func (v *ViewportInfo) WordWidthLimit() int {
-	if v.Width < MAX_WIDTH + PADDING * 2 {
-		return (v.Width - PADDING * 2)
+	if v.Width < MAX_WIDTH + (PADDING * 2) {
+		return (v.Width - (PADDING * 2))
 	} else {
 		return MAX_WIDTH
 	}
 }
 
 func (v *ViewportInfo) MaxWidth() int {
-	return (v.Width - PADDING * 2)
+	return (v.Width - (PADDING * 2))
 }

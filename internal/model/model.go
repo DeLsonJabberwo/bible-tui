@@ -21,6 +21,7 @@ type Model struct {
 	prepending	bool
 	nav			*navModel
 	references	[]Reference
+	search		*searchModel
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -39,7 +40,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.nav.Update(msg)
 		// check for exit or navigation
 		switch msg := msg.(type) {
-			
 		case CloseNavMsg:
 			m.nav = nil
 			return &m, nil
@@ -59,7 +59,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return nil, nil
 			}
 			m.viewport.SetContent(m.Buffer.Content)
-			m.viewport.SetYOffset(m.Buffer.VerseLocs.Verses[verseInfo])
+			m.viewport.SetYOffset(m.Buffer.VerseLocs.Verses[verseInfo] + 7)
+			return &m, nil
+		}
+
+		return &m, cmd
+	} else if m.search != nil {
+		cmd := m.search.Update(msg)
+
+		switch msg := msg.(type) {
+		case CloseSearchMsg:
+			m.search = nil
+			return &m, nil
+
+		case SelectVerseMsg:
+			m.search = nil
+			verseInfo := bible.VerseInfo{
+				Book: msg.Ref.BookInd,
+				Chapter: msg.Ref.Chapter,
+				Verse: msg.Ref.Verse,
+			}
+			var err error
+			m.Buffer, err = buffer.NewBuffer(m.Buffer.LastViewportInfo, 
+										strings.ToLower(m.Buffer.Version.Metadata.ShortName), 
+										verseInfo.Book)
+			if err != nil {
+				return nil, nil
+			}
+			m.viewport.SetContent(m.Buffer.Content)
+			m.viewport.SetYOffset(m.Buffer.VerseLocs.Verses[verseInfo] + 7)
 			return &m, nil
 		}
 
@@ -82,7 +110,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.Printf("\tOld Books: %v\n", m.Buffer.Books)
 				m.Buffer.ShiftBooksPrev()
 				log.Printf("\tNew Books: %v\n", m.Buffer.Books)
-				m.viewport.SetYOffset(m.Buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset()))
+				m.viewport.SetYOffset(m.Buffer.UpdateBuffer(m.Buffer.LastViewportInfo, m.viewport.YOffset()))
 			}
 
 		case "down", "j", "pgdown":
@@ -92,13 +120,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.Printf("\tOld Books: %v\n", m.Buffer.Books)
 				m.Buffer.ShiftBooksNext()
 				log.Printf("\tNew Books: %v\n", m.Buffer.Books)
-				m.viewport.SetYOffset(m.Buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset()))
+				m.viewport.SetYOffset(m.Buffer.UpdateBuffer(m.Buffer.LastViewportInfo, m.viewport.YOffset()))
 			}
 
 		case "ctrl+k", ":":
 			if m.nav == nil {
 				newNav := NewNavModel(m.references)
 				m.nav = &newNav
+			}
+
+		case "ctrl+s", "/":
+			if m.search == nil {
+				newSearch := NewSearchModel(m.Buffer.Version.Verses)
+				m.search = &newSearch
 			}
 
 		}
@@ -177,7 +211,7 @@ func (m Model) View() tea.View {
 
 	content := m.viewport.View()
 
-	if m.nav == nil {
+	if m.nav == nil && m.search == nil {
 		v.SetContent(content)
 		return v
 	}
@@ -186,18 +220,30 @@ func (m Model) View() tea.View {
 		Faint(true).
         Render(content)
 
-	navContent := m.nav.View()
-	styledNav := lipgloss.NewStyle().
-        Width(50).
-        Border(lipgloss.RoundedBorder()).
-        Padding(1, 2).
-        Render(navContent)
+	var overlay string
+	if m.nav != nil {
+		navContent := m.nav.View()
+		styledNav := lipgloss.NewStyle().
+			Width(50).
+			Border(lipgloss.RoundedBorder()).
+			Padding(1, 2).
+			Render(navContent)
+		overlay = styledNav
+	} else if m.search != nil {
+		searchContent := m.search.View()
+		styledSearch := lipgloss.NewStyle().
+			Width(50).
+			Border(lipgloss.RoundedBorder()).
+			Padding(1, 2).
+			Render(searchContent)
+		overlay = styledSearch
+	}
 
 	finalContent := overlayStrings(
 		dimmedContent, 
-		styledNav, 
+		overlay, 
 		34,
-		len(strings.Split(styledNav, "\n")), 
+		len(strings.Split(overlay, "\n")), 
 	)
 
 	v.SetContent(finalContent)
