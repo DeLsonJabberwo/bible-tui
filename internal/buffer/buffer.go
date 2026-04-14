@@ -103,12 +103,14 @@ func (b *Buffer) RenderBooks(viewportInfo ViewportInfo) error {
 		newline := strings.Contains(i.Text, "¶ ")
 		if newline {
 			verse := strings.Replace(i.Text, "¶ ", "", 1)
+			verse = b.versionStyling(verse)
 			_, err := sb.WriteString(lipgloss.Sprintf("\n[%s]%s", verseStyle.Render(strconv.Itoa(i.Verse)), verse))
 			if err != nil {
 				return err
 			}
 		} else {
-			_, err := sb.WriteString(lipgloss.Sprintf(" [%s]%s", verseStyle.Render(strconv.Itoa(i.Verse)), i.Text))
+			verse := b.versionStyling(i.Text)
+			_, err := sb.WriteString(lipgloss.Sprintf(" [%s]%s", verseStyle.Render(strconv.Itoa(i.Verse)), verse))
 			if err != nil {
 				return err
 			}
