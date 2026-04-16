@@ -22,6 +22,7 @@ type Model struct {
 	nav			*navModel
 	references	[]Reference
 	search		*searchModel
+	verSel		*verModel
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -92,6 +93,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		return &m, cmd
+	} else if m.verSel != nil {
+		cmd := m.verSel.Update(msg)
+
+		switch msg := msg.(type) {
+		case CloseVerMsg:
+			m.verSel = nil
+			return &m, nil
+
+		case SelectVersionMsg:
+			m.verSel = nil
+			var err error
+			currVerse := m.Buffer.VerseLocs.GetVerseFromLine(m.viewport.YOffset())
+			m.Buffer.Version, err = bible.LoadVersion(msg.Code)
+			if err != nil {
+				return nil, nil
+			}
+			m.Buffer.UpdateBuffer(m.Buffer.LastViewportInfo, m.Buffer.VerseLocs.Verses[currVerse])
+			m.viewport.SetContent(m.Buffer.Content)
+			m.viewport.SetYOffset(m.Buffer.VerseLocs.Verses[currVerse])
+			return &m, nil
+		}
+
+		return &m, cmd
 	}
 
 	inSecondBook := m.Buffer.GetBookFromLine(m.viewport.YOffset()) <= m.Buffer.Books[1]
@@ -133,6 +157,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.search == nil {
 				newSearch := NewSearchModel(m.Buffer.Version.Verses)
 				m.search = &newSearch
+			}
+
+		case "ctrl+v":
+			if m.verSel == nil {
+				newVerSel := NewVerModel() 
+				m.verSel = &newVerSel
 			}
 
 		}
@@ -211,7 +241,7 @@ func (m Model) View() tea.View {
 
 	content := m.viewport.View()
 
-	if m.nav == nil && m.search == nil {
+	if m.nav == nil && m.search == nil && m.verSel == nil {
 		v.SetContent(content)
 		return v
 	}
@@ -237,6 +267,14 @@ func (m Model) View() tea.View {
 			Padding(1, 2).
 			Render(searchContent)
 		overlay = styledSearch
+	} else if m.verSel != nil {
+		verContent := m.verSel.View()
+		styledVer := lipgloss.NewStyle().
+			Width(50).
+			Border(lipgloss.RoundedBorder()).
+			Padding(1, 2).
+			Render(verContent)
+		overlay = styledVer
 	}
 
 	finalContent := overlayStrings(
