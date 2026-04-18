@@ -22,8 +22,9 @@ type searchModel struct {
 
 func NewSearchModel(verses []bible.Verse) searchModel {
 	ti := textinput.New()
-	ti.Placeholder = "John 1:1"
+	ti.Placeholder = "In the beginning..."
 	ti.Focus()
+	ti.SetWidth(30)
 
 	return searchModel{
 		query: ti,
@@ -46,12 +47,16 @@ func (n *searchModel) Update(msg tea.Msg) tea.Cmd {
 		case "up", "ctrl+n":
 			if n.cursor > 0 {
 				n.cursor--
+			} else if n.cursor == 0 {
+				n.cursor = len(n.matches) - 1
 			}
 			return nil
 
 		case "down", "ctrl+p":
 			if n.cursor < len(n.matches) - 1 {
 				n.cursor++
+			} else if n.cursor == len(n.matches) - 1 {
+				n.cursor = 0
 			}
 			return nil
 

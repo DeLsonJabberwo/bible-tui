@@ -33,11 +33,15 @@ func (v *verModel) Update(msg tea.Msg) tea.Cmd {
 		case "k", "up":
 			if v.cursor > 0 {
 				v.cursor--
+			} else if v.cursor == 0 {
+				v.cursor = len(v.list) - 1
 			}
 
 		case "j", "down":
 			if v.cursor < len(v.list) - 1 {
 				v.cursor++
+			} else if v.cursor == len(v.list) - 1 {
+				v.cursor = 0
 			}
 
 		}
@@ -91,5 +95,6 @@ var versions []string = []string{
 	"geneva",
 	"asv",
 	"web",
+	"bishops",
 }
 

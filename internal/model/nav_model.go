@@ -23,6 +23,7 @@ func NewNavModel(references []Reference) navModel {
 	ti := textinput.New()
 	ti.Placeholder = "John 1:1"
 	ti.Focus()
+	ti.SetWidth(20)
 
 	return navModel{
 		query: ti,
@@ -45,12 +46,16 @@ func (n *navModel) Update(msg tea.Msg) tea.Cmd {
 		case "up", "ctrl+n":
 			if n.cursor > 0 {
 				n.cursor--
+			} else if n.cursor == 0 {
+				n.cursor = len(n.matches) - 1
 			}
 			return nil
 
 		case "down", "ctrl+p":
 			if n.cursor < len(n.matches) - 1 {
 				n.cursor++
+			} else if n.cursor == len(n.matches) - 1 {
+				n.cursor = 0
 			}
 			return nil
 
