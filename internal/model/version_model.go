@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -55,7 +54,7 @@ func (v verModel) View() string {
 	}
 
 	for i, m := range v.list {
-		line := fmt.Sprintf("%s", m)
+		line := m
 
 		if i == v.cursor {
 			b.WriteString("> " + lipgloss.NewStyle().
