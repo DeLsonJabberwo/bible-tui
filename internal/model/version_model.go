@@ -32,10 +32,14 @@ func (v *verModel) Update(msg tea.Msg) tea.Cmd {
 			return selectVersionCmd(v.list[v.cursor])
 
 		case "k", "up":
-			v.cursor--
+			if v.cursor > 0 {
+				v.cursor--
+			}
 
 		case "j", "down":
-			v.cursor++
+			if v.cursor < len(v.list) - 1 {
+				v.cursor++
+			}
 
 		}
 	}
