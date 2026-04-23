@@ -23,7 +23,7 @@ func main() {
 		}
 		defer f.Close()
 	} else {
-		f, err := tea.LogToFile("/dev/null", "debug")
+		f, err := tea.LogToFile(os.DevNull, "debug")
 		if err != nil {
 			fmt.Println("fatal:", err)
 			os.Exit(1)
