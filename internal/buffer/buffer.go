@@ -93,6 +93,12 @@ func (b *Buffer) RenderBooks(viewportInfo ViewportInfo) error {
 			if err != nil {
 				return err
 			}
+			if b.Version.Metadata.ShortName != "KJV" {
+				_, err := sb.WriteString(lipgloss.Sprintf("\n"))
+				if err != nil {
+					return err
+				}
+			}
 		}
 		verseInfo := bible.VerseInfo{
 			Book: i.Book,
