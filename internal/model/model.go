@@ -196,17 +196,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		padding := buffer.PADDING
 		if !m.ready {
-			m.viewport = viewport.New(viewport.WithWidth(msg.Width), viewport.WithHeight(msg.Height))
+			m.viewport = viewport.New(viewport.WithWidth(msg.Width), viewport.WithHeight(msg.Height - 2))
 			m.viewport.YPosition = 0
 			m.viewport.HighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("34"))
 			m.viewport.SelectedHighlightStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Background(lipgloss.Color("47"))
-			m.viewport.Style = m.viewport.Style.Margin(0, padding, 2)
+			m.viewport.Style = m.viewport.Style.Margin(0, padding, 1)
 
 			m.Buffer.UpdateBuffer(buffer.NewViewportInfo(m.viewport.Width()), m.viewport.YOffset())
 			m.ready = true
 		} else {
 			m.viewport.SetWidth(msg.Width)
-			m.viewport.SetHeight(msg.Height)
+			m.viewport.SetHeight(msg.Height - 2)
 			viewportInfo := buffer.NewViewportInfo(m.viewport.Width())
 			//log.Printf("Old Offset: %d\n", m.viewport.YOffset())
 			m.viewport.SetYOffset(m.Buffer.UpdateBuffer(viewportInfo, m.viewport.YOffset()))
@@ -242,6 +242,7 @@ func (m Model) View() tea.View {
 	content := m.viewport.View()
 
 	if m.nav == nil && m.search == nil && m.verSel == nil {
+		content := lipgloss.JoinVertical(0, content, m.infoBar(m.viewport.Width()))
 		v.SetContent(content)
 		return v
 	}
@@ -283,6 +284,8 @@ func (m Model) View() tea.View {
 		34,
 		len(strings.Split(overlay, "\n")), 
 	)
+
+	finalContent = lipgloss.JoinVertical(0, finalContent, m.infoBar(m.viewport.Width()))
 
 	v.SetContent(finalContent)
 

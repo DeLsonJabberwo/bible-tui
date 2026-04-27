@@ -4,26 +4,29 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/delsonjabberwo/bible-tui/internal/buffer"
 )
 
-func (m Model) infoBar() string {
+func (m Model) infoBar(width int) string {
 	keys := []string{
-		"↑/k     up",
-        "↓/j     down",
 		"ctrl+k  navigation",
-        "?       toggle more info",
-        "q       quit",
+		"ctrl+s  search",
+		"ctrl+v  version",
+		"q  quit",
 	}
 
-	barText := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("240")).
-				Render(strings.Join(keys, "  •  "))
+	contentWidth := max(min(width-2*buffer.PADDING, buffer.MAX_WIDTH), 0)
 
-	return lipgloss.NewStyle().
-		Width(m.viewport.Width()).
-		Background(lipgloss.Color("236")).
-        Foreground(lipgloss.Color("252")).
-        Padding(0, 1).
-        Align(lipgloss.Center).
-        Render(barText)
+	barWidth := contentWidth + 2*buffer.PADDING
+
+	style := lipgloss.NewStyle().
+		Width(barWidth).
+		Background(lipgloss.Color("#1e2d3d")).
+		Foreground(lipgloss.Color("252")).
+		Align(lipgloss.Center)
+
+	row1 := style.Render(strings.Join(keys, "  •  "))
+	row2 := style.Render("")
+
+	return lipgloss.JoinVertical(0, row1, row2)
 }
