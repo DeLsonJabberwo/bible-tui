@@ -43,6 +43,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg := msg.(type) {
 		case CloseNavMsg:
 			m.nav = nil
+			duration := time.Since(start)
+			log.Printf("Update Time: %s\n", duration)
 			return &m, nil
 
 		case SelectVerseMsg:
@@ -61,6 +63,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.viewport.SetContent(m.Buffer.Content)
 			m.viewport.SetYOffset(m.Buffer.VerseLocs.Verses[verseInfo] + 7)
+			duration := time.Since(start)
+			log.Printf("Update Time: %s\n", duration)
 			return &m, nil
 		}
 
@@ -71,6 +75,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg := msg.(type) {
 		case CloseSearchMsg:
 			m.search = nil
+			duration := time.Since(start)
+			log.Printf("Update Time: %s\n", duration)
 			return &m, nil
 
 		case SelectVerseMsg:
@@ -89,6 +95,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.viewport.SetContent(m.Buffer.Content)
 			m.viewport.SetYOffset(m.Buffer.VerseLocs.Verses[verseInfo] + 7)
+			duration := time.Since(start)
+			log.Printf("Update Time: %s\n", duration)
 			return &m, nil
 		}
 
@@ -99,6 +107,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg := msg.(type) {
 		case CloseVerMsg:
 			m.verSel = nil
+			duration := time.Since(start)
+			log.Printf("Update Time: %s\n", duration)
 			return &m, nil
 
 		case SelectVersionMsg:
@@ -112,6 +122,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Buffer.UpdateBuffer(m.Buffer.LastViewportInfo, m.Buffer.VerseLocs.Verses[currVerse])
 			m.viewport.SetContent(m.Buffer.Content)
 			m.viewport.SetYOffset(m.Buffer.VerseLocs.Verses[currVerse])
+			duration := time.Since(start)
+			log.Printf("Update Time: %s\n", duration)
 			return &m, nil
 		}
 
@@ -123,6 +135,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if k := msg.String(); k == "ctrl+c" || k == "q" {
+			duration := time.Since(start)
+			log.Printf("Update Time: %s\n", duration)
 			return &m, tea.Quit
 		}
 
